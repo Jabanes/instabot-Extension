@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Send Cookies</title>
+    <style>
+      body { font-family: Arial; padding: 10px; width: 250px; }
+      input, button { width: 100%; margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <h3>Instagram Bot</h3>
+    <label>Bearer Token (DEV)</label>
+    <input type="text" id="token" placeholder="Paste token here">
+    <label>Environment</label>
+    <select id="env">
+      <option value="local">Local</option>
+      <option value="production">Production</option>
+    </select>
+    <button id="sendBtn">Send to Bot</button>
+    <div id="status"></div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

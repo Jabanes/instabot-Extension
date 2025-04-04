@@ -1,0 +1,32 @@
+{
+    "manifest_version": 3,
+    "name": "Instagram Bot Cookie Sender",
+    "version": "1.0",
+    "description": "Extracts cookies and profile URL from Instagram and sends to backend.",
+    "permissions": [
+      "cookies",
+      "activeTab",
+      "tabs",
+      "storage",
+      "scripting"
+    ],
+    "host_permissions": [
+      "https://*.instagram.com/*",
+      "https://instabot-ca8d9.web.app/*",
+      "http://localhost:3000/"
+    ],
+    "background": {
+        "service_worker": "service_worker.js"
+    },
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "Send to InstaBot"
+    },
+    "externally_connectable": {
+      "matches": [
+        "https://instabot-ca8d9.web.app/*",
+        "http://localhost:3000/*"
+      ]
+    }
+  }
+  
