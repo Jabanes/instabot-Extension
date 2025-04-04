@@ -1,13 +1,26 @@
 chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
-    console.log("📥 [Service Worker] Message received:", msg);
-  
     if (msg.action === "saveFirebaseToken" && msg.token) {
       chrome.storage.local.set({ firebase_token: msg.token }, () => {
-        console.log("✅ [Service Worker] Token saved:", msg.token);
-        sendResponse({ status: "success", received: true });
+        console.log("✅ Token saved");
+        sendResponse({ status: "token_saved" });
       });
-      return true; // Keeps sendResponse alive
-    } else {
-      console.warn("❌ [Service Worker] Invalid message or missing token.");
+      return true;
+    }
+  
+    if (msg.action === "setTargetEndpoint" && msg.endpoint) {
+      chrome.storage.local.set({ target_endpoint: msg.endpoint }, () => {
+        console.log("✅ Target endpoint set:", msg.endpoint);
+        sendResponse({ status: "endpoint_saved" });
+      });
+      return true;
+    }
+  
+    if (msg.action === "setSelectedAction" && msg.label) {
+      chrome.storage.local.set({ selectedActionLabel: msg.label }, () => {
+        console.log("✅ Selected action label set:", msg.label);
+        sendResponse({ status: "label_saved" });
+      });
+      return true;
     }
   });
+  
