@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   console.log("📦 Popup loaded");
 
+
   // ✅ Persisted: Check if bot is running (even if popup reopened)
   chrome.storage.local.get("botStatus", (result) => {
     console.log("📥 Loaded botStatus from storage:", result.botStatus);
@@ -27,15 +28,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ✅ Wrap fetch in a timeout failsafe
-  const fetchWithTimeout = (url, options, timeout = 60000) => {
-    return Promise.race([
-      fetch(url, options),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("⏱️ Timeout: Backend did not respond in time")), timeout)
-      )
-    ]);
-  };
 
   // ✅ Handle "Send to Bot" click
   sendBtn.addEventListener("click", async () => {
@@ -81,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
             loadingEl.style.display = "block";
 
             // ✅ Fetch with timeout to prevent hang
-            const res = await fetchWithTimeout(backendURL, {
+            const res = await fetch(backendURL, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -99,6 +91,15 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (result.status === "no_change") {
               statusEl.style.color = "#ffc107"; // yellow
               statusEl.innerText = "⚠️ No Change:\n" + JSON.stringify(result, null, 2);
+            
+            } else if (result.status === "error" && result.message?.includes("Broken pipe")) {
+              statusEl.style.color = "#dc3545";
+              statusEl.innerText = "❌ Bot crashed due to Broken Pipe.";
+
+              loadingEl.style.display = "none"; //force stop the bot in case of broken pipe
+              chrome.storage.local.set({ botStatus: "finished" });
+              chrome.runtime.sendMessage({ action: "botStatus", status: "finished" });
+              
             } else {
               statusEl.style.color = "#dc3545"; // red
               statusEl.innerText = "❌ Error:\n" + JSON.stringify(result, null, 2);
