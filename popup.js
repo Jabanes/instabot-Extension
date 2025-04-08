@@ -126,7 +126,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // 🔍 Check bot status (updated backend structure)
   async function fetchBotStatus(token) {
     const backendBase = window.ENV?.BACKEND_BASE_URL || "http://127.0.0.1:8000";
-    const url = `https://backendinstabot.onrender.com/check-bot-status`;
+    // const url = `https://backendinstabot.onrender.com/check-bot-status`;
+    const url = `https://igbot-prod.onrender.com/check-bot-status`;
 
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` }

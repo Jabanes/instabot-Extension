@@ -1,5 +1,5 @@
 // config.js
 window.ENV = {
-    BACKEND_BASE_URL: "http://backendinstabot-production.up.railway.app"
+    BACKEND_BASE_URL: "https://backendinstabot.onrender.com/check-bot-status"
   };
   
