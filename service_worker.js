@@ -1,4 +1,9 @@
 chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
+
+    if (msg === "getExtensionId") {
+      sendResponse({ id: chrome.runtime.id });
+    }
+
     if (msg.action === "saveFirebaseToken" && msg.token) {
       chrome.storage.local.set({ firebase_token: msg.token }, () => {
         console.log("✅ Token saved");

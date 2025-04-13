@@ -30,9 +30,7 @@
         "https://instabot-ca8d9.web.app/*",
         "http://localhost:3000/*"
       ]
-    },
-    
-    "privacy_policy": "https://instabot-ca8d9.web.app/privacy-policy"
+    }
     
   }
   

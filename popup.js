@@ -51,7 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ✅ Handle "Send to Bot" click
   sendBtn.addEventListener("click", async () => {
     console.log("🖱️ Send button clicked");
-  
+
     chrome.storage.local.get("cookieConsent", (res) => {
       if (res.cookieConsent === true) {
         console.log("✅ Consent already granted");
@@ -60,11 +60,11 @@ document.addEventListener("DOMContentLoaded", () => {
         // Check localStorage from frontend
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
           const tabId = tabs[0]?.id;
-          if (!tabId) {
+          if (!results || !Array.isArray(results) || !results[0]?.result) {
             alert("❌ Cannot verify user consent. Please reload the page.");
             return;
           }
-  
+
           chrome.scripting.executeScript(
             {
               target: { tabId },
@@ -85,31 +85,31 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     });
-  
+
     // ✅ Function to run the bot (only after verified consent)
     async function triggerCookieExtraction() {
       chrome.storage.local.get(["firebase_token", "target_endpoint"], async (result) => {
         const token = result.firebase_token;
         const backendURL = result.target_endpoint;
-  
+
         if (!token || !backendURL) {
           console.warn("❌ Missing token or endpoint");
           statusEl.innerText = "❌ Missing token or endpoint.";
           loadingEl.style.display = "none";
           return;
         }
-  
+
         chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
           const tab = tabs[0];
           const profileURL = tab.url;
-  
+
           chrome.cookies.getAll({ domain: ".instagram.com" }, async (cookies) => {
             const usedCookies = [
               "fbm_124024574287414", "mid", "ig_did", "datr", "ps_l", "ps_n",
               "csrftoken", "ig_nrcb", "wd", "ds_user_id", "sessionid", "rur"
             ];
             const filtered = cookies.filter(c => usedCookies.includes(c.name));
-  
+
             const payload = {
               cookies: filtered.map(c => ({
                 name: c.name,
@@ -122,12 +122,12 @@ document.addEventListener("DOMContentLoaded", () => {
               })),
               profile_url: profileURL
             };
-  
+
             try {
               console.log("🚀 Bot is starting... sending to backend");
               chrome.storage.local.set({ bot_is_running: true });
               loadingEl.style.display = "block";
-  
+
               const res = await fetch(backendURL, {
                 method: "POST",
                 headers: {
@@ -136,7 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 },
                 body: JSON.stringify(payload)
               });
-  
+
               if (res.status === 429) {
                 const errJson = await res.json();
                 chrome.storage.local.remove("bot_is_running");
@@ -145,7 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 statusEl.innerText = `❌ ${errJson.error || "Too many users running bots right now."}`;
                 return;
               }
-  
+
               if (!res.ok) {
                 const errJson = await res.json();
                 chrome.storage.local.remove("bot_is_running");
@@ -154,16 +154,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 statusEl.innerText = `❌ Backend error: ${errJson.error || "Unknown issue"}`;
                 return;
               }
-  
+
               const botResponse = await res.json();
               console.log("📦 Bot response:", botResponse);
-  
+
               const finalStatus = await fetchBotStatus(token);
-  
+
               if (!finalStatus.is_running) {
                 chrome.storage.local.remove("bot_is_running");
                 loadingEl.style.display = "none";
-  
+
                 if (!finalStatus.status) {
                   console.log("🕓 Firestore hasn't written final result yet. Retrying in 2s...");
                   setTimeout(async () => {
@@ -178,7 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
               } else {
                 console.log("⏳ Bot is still running... waiting on Firestore");
               }
-  
+
             } catch (err) {
               console.error("❌ Fetch error:", err);
               statusEl.style.color = "#dc3545";
@@ -194,7 +194,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 🔍 Check bot status (updated backend structure)
   async function fetchBotStatus(token) {
-    const backendBase = window.ENV?.BACKEND_BASE_URL || "http://127.0.0.1:8000";
+    // const backendBase = window.ENV?.BACKEND_BASE_URL || "http://127.0.0.1:8000";
     const url = `https://backendinstabot.onrender.com/check-bot-status`;
     // const url = `http://localhost:8000`;
 
