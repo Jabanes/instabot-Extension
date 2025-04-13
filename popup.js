@@ -51,124 +51,145 @@ document.addEventListener("DOMContentLoaded", () => {
   // ✅ Handle "Send to Bot" click
   sendBtn.addEventListener("click", async () => {
     console.log("🖱️ Send button clicked");
-
-    chrome.storage.local.get(["firebase_token", "target_endpoint"], async (result) => {
-      const token = result.firebase_token;
-      const backendURL = result.target_endpoint;
-
-      if (!token || !backendURL) {
-        console.warn("❌ Missing token or endpoint");
-        statusEl.innerText = "❌ Missing token or endpoint.";
-        loadingEl.style.display = "none";
-        return;
-      }
-
-      chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-        const tab = tabs[0];
-        const profileURL = tab.url;
-
-        chrome.cookies.getAll({ domain: ".instagram.com" }, async (cookies) => {
-          const usedCookies = [
-            "fbm_124024574287414",
-            "mid",
-            "ig_did",
-            "datr",
-            "ps_l",
-            "ps_n",
-            "csrftoken",
-            "ig_nrcb",
-            "wd",
-            "ds_user_id",
-            "sessionid",
-            "rur"
-          ];
-
-          const filtered = cookies.filter(c => usedCookies.includes(c.name));
-
-          const payload = {
-            cookies: filtered.map(c => ({
-              name: c.name,
-              value: c.value,
-              domain: c.domain,
-              path: c.path,
-              secure: c.secure,
-              httpOnly: c.httpOnly,
-              sameSite: c.sameSite || "Strict"
-            })),
-            profile_url: profileURL
-          };
-
-          try {
-            console.log("🚀 Bot is starting... sending to backend");
-            chrome.storage.local.set({ bot_is_running: true });
-            loadingEl.style.display = "block";
-
-            const res = await fetch(backendURL, {
-              method: "POST",
-
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-              },
-              body: JSON.stringify(payload)
-
-
-            });
-
-            if (res.status === 429) {
-              const errJson = await res.json();
-              chrome.storage.local.remove("bot_is_running");
-              loadingEl.style.display = "none";
-              statusEl.style.color = "#dc3545";
-              statusEl.innerText = `❌ ${errJson.error || "Too many users running bots right now."}`;
-              return;
-            }
-
-            if (!res.ok) {
-              const errJson = await res.json();
-              chrome.storage.local.remove("bot_is_running");
-              loadingEl.style.display = "none";
-              statusEl.style.color = "#dc3545";
-              statusEl.innerText = `❌ Backend error: ${errJson.error || "Unknown issue"}`;
-              return;
-            }
-
-
-            const botResponse = await res.json();
-            console.log("📦 Bot response:", botResponse);
-
-            const finalStatus = await fetchBotStatus(token);
-
-            if (!finalStatus.is_running) {
-              chrome.storage.local.remove("bot_is_running");
-              loadingEl.style.display = "none";
-
-              if (!finalStatus.status) {
-                console.log("🕓 Firestore hasn't written final result yet. Retrying in 2s...");
-                setTimeout(async () => {
-                  const retry = await fetchBotStatus(token);
-                  if (!retry.is_running) {
-                    renderFinalBotStatus(retry);
-                  }
-                }, 2000);
-              } else {
-                renderFinalBotStatus(finalStatus);
-              }
-            } else {
-              console.log("⏳ Bot is still running... waiting on Firestore");
-              // Loader stays. User can reopen popup later.
-            }
-
-          } catch (err) {
-            console.error("❌ Fetch error:", err);
-            statusEl.style.color = "#dc3545";
-            statusEl.innerText = "❌ Error: " + err.message;
-            loadingEl.style.display = "none";
-            chrome.storage.local.remove("bot_is_running");
+  
+    chrome.storage.local.get("cookieConsent", (res) => {
+      if (res.cookieConsent === true) {
+        console.log("✅ Consent already granted");
+        triggerCookieExtraction(); // 🧠 safe
+      } else {
+        // Check localStorage from frontend
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          const tabId = tabs[0]?.id;
+          if (!tabId) {
+            alert("❌ Cannot verify user consent. Please reload the page.");
+            return;
           }
+  
+          chrome.scripting.executeScript(
+            {
+              target: { tabId },
+              func: () => localStorage.getItem("acceptedPrivacy") === "true"
+            },
+            (results) => {
+              const accepted = results?.[0]?.result;
+              if (accepted) {
+                console.log("✅ Found frontend consent. Saving.");
+                chrome.storage.local.set({ cookieConsent: true }, () => {
+                  triggerCookieExtraction();
+                });
+              } else {
+                alert("⚠️ You must accept the Privacy Policy before using the bot.\nVisit https://instabot-ca8d9.web.app/privacy-policy to continue.");
+              }
+            }
+          );
+        });
+      }
+    });
+  
+    // ✅ Function to run the bot (only after verified consent)
+    async function triggerCookieExtraction() {
+      chrome.storage.local.get(["firebase_token", "target_endpoint"], async (result) => {
+        const token = result.firebase_token;
+        const backendURL = result.target_endpoint;
+  
+        if (!token || !backendURL) {
+          console.warn("❌ Missing token or endpoint");
+          statusEl.innerText = "❌ Missing token or endpoint.";
+          loadingEl.style.display = "none";
+          return;
+        }
+  
+        chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+          const tab = tabs[0];
+          const profileURL = tab.url;
+  
+          chrome.cookies.getAll({ domain: ".instagram.com" }, async (cookies) => {
+            const usedCookies = [
+              "fbm_124024574287414", "mid", "ig_did", "datr", "ps_l", "ps_n",
+              "csrftoken", "ig_nrcb", "wd", "ds_user_id", "sessionid", "rur"
+            ];
+            const filtered = cookies.filter(c => usedCookies.includes(c.name));
+  
+            const payload = {
+              cookies: filtered.map(c => ({
+                name: c.name,
+                value: c.value,
+                domain: c.domain,
+                path: c.path,
+                secure: c.secure,
+                httpOnly: c.httpOnly,
+                sameSite: c.sameSite || "Strict"
+              })),
+              profile_url: profileURL
+            };
+  
+            try {
+              console.log("🚀 Bot is starting... sending to backend");
+              chrome.storage.local.set({ bot_is_running: true });
+              loadingEl.style.display = "block";
+  
+              const res = await fetch(backendURL, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+              });
+  
+              if (res.status === 429) {
+                const errJson = await res.json();
+                chrome.storage.local.remove("bot_is_running");
+                loadingEl.style.display = "none";
+                statusEl.style.color = "#dc3545";
+                statusEl.innerText = `❌ ${errJson.error || "Too many users running bots right now."}`;
+                return;
+              }
+  
+              if (!res.ok) {
+                const errJson = await res.json();
+                chrome.storage.local.remove("bot_is_running");
+                loadingEl.style.display = "none";
+                statusEl.style.color = "#dc3545";
+                statusEl.innerText = `❌ Backend error: ${errJson.error || "Unknown issue"}`;
+                return;
+              }
+  
+              const botResponse = await res.json();
+              console.log("📦 Bot response:", botResponse);
+  
+              const finalStatus = await fetchBotStatus(token);
+  
+              if (!finalStatus.is_running) {
+                chrome.storage.local.remove("bot_is_running");
+                loadingEl.style.display = "none";
+  
+                if (!finalStatus.status) {
+                  console.log("🕓 Firestore hasn't written final result yet. Retrying in 2s...");
+                  setTimeout(async () => {
+                    const retry = await fetchBotStatus(token);
+                    if (!retry.is_running) {
+                      renderFinalBotStatus(retry);
+                    }
+                  }, 2000);
+                } else {
+                  renderFinalBotStatus(finalStatus);
+                }
+              } else {
+                console.log("⏳ Bot is still running... waiting on Firestore");
+              }
+  
+            } catch (err) {
+              console.error("❌ Fetch error:", err);
+              statusEl.style.color = "#dc3545";
+              statusEl.innerText = "❌ Error: " + err.message;
+              loadingEl.style.display = "none";
+              chrome.storage.local.remove("bot_is_running");
+            }
+          });
         });
       });
-    });
+    }
   });
 
   // 🔍 Check bot status (updated backend structure)
