@@ -88,15 +88,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const res = await fetch(backendURL, {
               method: "POST",
-             
+
               headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`
               },
               body: JSON.stringify(payload)
-             
-            
+
+
             });
+
+            if (res.status === 429) {
+              const errJson = await res.json();
+              chrome.storage.local.remove("bot_is_running");
+              loadingEl.style.display = "none";
+              statusEl.style.color = "#dc3545";
+              statusEl.innerText = `❌ ${errJson.error || "Too many users running bots right now."}`;
+              return;
+            }
+
+            if (!res.ok) {
+              const errJson = await res.json();
+              chrome.storage.local.remove("bot_is_running");
+              loadingEl.style.display = "none";
+              statusEl.style.color = "#dc3545";
+              statusEl.innerText = `❌ Backend error: ${errJson.error || "Unknown issue"}`;
+              return;
+            }
+
 
             const botResponse = await res.json();
             console.log("📦 Bot response:", botResponse);
@@ -106,7 +125,18 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!finalStatus.is_running) {
               chrome.storage.local.remove("bot_is_running");
               loadingEl.style.display = "none";
-              renderFinalBotStatus(finalStatus);
+
+              if (!finalStatus.status) {
+                console.log("🕓 Firestore hasn't written final result yet. Retrying in 2s...");
+                setTimeout(async () => {
+                  const retry = await fetchBotStatus(token);
+                  if (!retry.is_running) {
+                    renderFinalBotStatus(retry);
+                  }
+                }, 2000);
+              } else {
+                renderFinalBotStatus(finalStatus);
+              }
             } else {
               console.log("⏳ Bot is still running... waiting on Firestore");
               // Loader stays. User can reopen popup later.
@@ -114,6 +144,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           } catch (err) {
             console.error("❌ Fetch error:", err);
+            statusEl.style.color = "#dc3545";
             statusEl.innerText = "❌ Error: " + err.message;
             loadingEl.style.display = "none";
             chrome.storage.local.remove("bot_is_running");
@@ -126,8 +157,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // 🔍 Check bot status (updated backend structure)
   async function fetchBotStatus(token) {
     const backendBase = window.ENV?.BACKEND_BASE_URL || "http://127.0.0.1:8000";
-    // const url = `https://backendinstabot.onrender.com/check-bot-status`;
-    const url = `https://igbot-prod.onrender.com/check-bot-status`;
+    const url = `https://backendinstabot.onrender.com/check-bot-status`;
+    // const url = `http://localhost:8000`;
 
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` }
@@ -170,7 +201,7 @@ document.addEventListener("DOMContentLoaded", () => {
       output += `\nFollowing Before: ${following_before}\nFollowing After: ${following_after}`;
     }
 
-    else{
+    else {
 
       output += `Before Scan: ${count_before ?? "?"}\nAfter Scan: ${count_after ?? "?"}`;
 
