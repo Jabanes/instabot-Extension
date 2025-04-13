@@ -10,6 +10,9 @@
       "storage",
       "scripting"
     ],
+    "optional_permissions": [
+      "cookies"
+    ],
     "host_permissions": [
       "https://*.instagram.com/*",
       "https://instabot-ca8d9.web.app/*",
@@ -27,6 +30,9 @@
         "https://instabot-ca8d9.web.app/*",
         "http://localhost:3000/*"
       ]
-    }
+    },
+    
+    "privacy_policy": "https://instabot-ca8d9.web.app/privacy-policy"
+    
   }
   
