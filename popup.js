@@ -57,28 +57,51 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("✅ Consent already granted");
         triggerCookieExtraction(); // 🧠 safe
       } else {
-        // Check localStorage from frontend
+
+        
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          const tabId = tabs[0]?.id;
-          if (!results || !Array.isArray(results) || !results[0]?.result) {
-            alert("❌ Cannot verify user consent. Please reload the page.");
+          const tabId = tabs?.[0]?.id; // Use optional chaining for safety
+  
+          // Check if we got a valid tab ID
+          if (!tabId) {
+            console.error("❌ Could not get active tab ID.");
+            alert("Error: Could not get the active tab. Please reload the page and try again.");
             return;
           }
-
+  
           chrome.scripting.executeScript(
             {
-              target: { tabId },
+              target: { tabId: tabId }, // Use the obtained tabId
               func: () => localStorage.getItem("acceptedPrivacy") === "true"
             },
             (results) => {
-              const accepted = results?.[0]?.result;
+              // Check for errors during script execution
+              if (chrome.runtime.lastError) {
+                  console.error("❌ Scripting Error:", chrome.runtime.lastError.message);
+                  alert(`Error checking consent on page: ${chrome.runtime.lastError.message}. Please reload the page.`);
+                  return;
+              }
+  
+              // ** NOW check results, INSIDE the callback **
+              if (!results || !Array.isArray(results) || results.length === 0) {
+                  console.error("❌ Script execution returned invalid results:", results);
+                  alert("Error: Could not verify consent status from the page. Reload and ensure you've accepted the policy.");
+                  return;
+               }
+  
+              // Proceed with the result
+              const accepted = results[0].result; // Access result safely now
+              console.log(`📄 Consent from page localStorage ('acceptedPrivacy'): ${accepted}`);
+  
               if (accepted) {
                 console.log("✅ Found frontend consent. Saving.");
                 chrome.storage.local.set({ cookieConsent: true }, () => {
+                  console.log("💾 Consent saved to storage. Triggering bot...");
                   triggerCookieExtraction();
                 });
               } else {
-                alert("⚠️ You must accept the Privacy Policy before using the bot.\nVisit https://instabot-ca8d9.web.app/privacy-policy to continue.");
+                console.warn("❌ Consent not accepted on the webpage.");
+                alert("⚠️ You must accept the Privacy Policy on the website before using the bot.\nVisit the site's privacy policy page to continue.");
               }
             }
           );
@@ -91,6 +114,8 @@ document.addEventListener("DOMContentLoaded", () => {
       chrome.storage.local.get(["firebase_token", "target_endpoint"], async (result) => {
         const token = result.firebase_token;
         const backendURL = result.target_endpoint;
+        console.log(backendURL);
+        
 
         if (!token || !backendURL) {
           console.warn("❌ Missing token or endpoint");
@@ -195,7 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 🔍 Check bot status (updated backend structure)
   async function fetchBotStatus(token) {
     // const backendBase = window.ENV?.BACKEND_BASE_URL || "http://127.0.0.1:8000";
-    const url = `https://backendinstabot.onrender.com/check-bot-status`;
+    const url = `https://igbot-prod.onrender.com/check-bot-status`;
     // const url = `http://localhost:8000`;
 
     const res = await fetch(url, {

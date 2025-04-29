@@ -16,7 +16,8 @@
     "host_permissions": [
       "https://*.instagram.com/*",
       "https://instabot-ca8d9.web.app/*",
-      "http://localhost:3000/"
+      "http://localhost:3000/",
+      "https://igbot-prod.onrender.com/"
     ],
     "background": {
         "service_worker": "service_worker.js"

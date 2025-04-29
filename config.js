@@ -1,5 +1,5 @@
 // config.js
 window.ENV = {
-    BACKEND_BASE_URL: "https://igbot-prod.onrender.com/check-bot-status"
+    BACKEND_BASE_URL: "https://igbot-prod.onrender.com"
   };
   
